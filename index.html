@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YT Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0a;
+      --surface:   #111111;
+      --border:    #222222;
+      --accent:    #ff4d00;
+      --accent2:   #ff8c42;
+      --text:      #f0f0f0;
+      --muted:     #666666;
+      --success:   #00e5a0;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── LAYOUT ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      margin-bottom: 56px;
+    }
+
+    .label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-family: var(--font-head);
+      font-size: clamp(2.4rem, 6vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── FORM ── */
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    /* ── BUTTON ── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+
+    .btn:hover { background: var(--accent2); }
+    .btn:active { transform: scale(0.99); }
+    .btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── STATUS BAR ── */
+    #status {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-top: 16px;
+      min-height: 18px;
+      transition: color 0.2s;
+    }
+
+    #status.ok  { color: var(--success); }
+    #status.err { color: #ff4d4d; }
+
+    /* ── OUTPUT ── */
+    #output-wrap {
+      display: none;
+      margin-top: 48px;
+      animation: fadeUp 0.4s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .output-title {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .meta-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ── ANSWER CARD ── */
+    .answer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 28px 24px;
+    }
+
+    .answer-text {
+      font-size: 13.5px;
+      line-height: 1.85;
+      color: #d8d8d8;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Highlight emoji section headers */
+    .answer-text .section {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      margin-top: 80px;
+      text-align: center;
+      font-size: 11px;
+      color: #2a2a2a;
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <p class="label">▶ AI-Powered</p>
+    <h1>YouTube<br/><span>Agent</span></h1>
+    <p class="subtitle">Ask anything about any video — powered by Groq + FAISS RAG</p>
+  </header>
+
+  <div class="divider"></div>
+
+  <!-- FORM -->
+  <div class="form-group">
+    <label class="form-label" for="url">YouTube URL</label>
+    <input id="url" type="text" placeholder="https://www.youtube.com/watch?v=..." />
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="question">Your Question</label>
+    <textarea id="question" placeholder="What is this video about? Summarize the key points..."></textarea>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="language">Response Language</label>
+    <select id="language">
+      <option value="English">English</option>
+      <option value="Hindi">Hindi</option>
+    </select>
+  </div>
+
+  <button class="btn" id="askBtn" onclick="askAgent()">
+    <span class="spinner" id="spinner"></span>
+    <span id="btnText">Run Agent</span>
+  </button>
+
+  <p id="status"></p>
+
+  <!-- OUTPUT -->
+  <div id="output-wrap">
+    <div class="output-header">
+      <span class="output-title">Answer</span>
+      <div class="meta-chips" id="meta-chips"></div>
+    </div>
+    <div class="answer-card">
+      <pre class="answer-text" id="answer-text"></pre>
+    </div>
+  </div>
+
+  <footer>YT AGENT &nbsp;·&nbsp; GROQ + FAISS + LANGCHAIN</footer>
+</div>
+
+<script>
+  async function askAgent() {
+    const url      = document.getElementById('url').value.trim();
+    const question = document.getElementById('question').value.trim();
+    const language = document.getElementById('language').value;
+    const btn      = document.getElementById('askBtn');
+    const spinner  = document.getElementById('spinner');
+    const btnText  = document.getElementById('btnText');
+    const status   = document.getElementById('status');
+    const outputWrap = document.getElementById('output-wrap');
+
+    if (!url || !question) {
+      setStatus('Please fill in both URL and question.', 'err');
+      return;
+    }
+
+    // Loading state
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Processing...';
+    outputWrap.style.display = 'none';
+    setStatus('⏳ Fetching transcript and building index...', '');
+
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, question, language })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setStatus(`❌ ${data.error}`, 'err');
+        return;
+      }
+
+      // Render answer
+      document.getElementById('answer-text').textContent = data.answer;
+
+      // Meta chips
+      const chips = document.getElementById('meta-chips');
+      chips.innerHTML = `
+        <span class="chip">${data.chunks} chunks</span>
+        <span class="chip">${(data.transcript_length / 1000).toFixed(1)}k chars</span>
+        <span class="chip">${data.language_used}</span>
+      `;
+
+      outputWrap.style.display = 'block';
+      setStatus('✅ Done', 'ok');
+
+    } catch (err) {
+      setStatus(`❌ Server error: ${err.message}`, 'err');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = 'Run Agent';
+    }
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = type;
+  }
+
+  // Enter key submits
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) askAgent();
+  });
+</script>
+</body>
+</html>
